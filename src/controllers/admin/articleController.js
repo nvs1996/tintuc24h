@@ -14,9 +14,8 @@ async function loadFormOptions() {
   return { categories, tiktokProducts };
 }
 
-function uniqueSlug(title, id) {
-  const base = slugify(title, { lower: true, locale: 'vi', strict: true });
-  return `${base}-${id}`;
+function makeSlug(title) {
+  return slugify(title, { lower: true, locale: 'vi', strict: true });
 }
 
 exports.list = async (req, res) => {
@@ -81,7 +80,7 @@ exports.create = async (req, res) => {
     tiktokProduct: tiktokProductId || null,
     isTopNews: isTopNews === 'on',
   });
-  article.slug = uniqueSlug(title, article._id.toString().slice(-6));
+  article.slug = makeSlug(title);
 
   await article.save();
   req.flash('success', 'Đã tạo bài viết.');
@@ -116,7 +115,7 @@ exports.update = async (req, res) => {
   else if (bodyImage2Url !== undefined) article.bodyImage2 = bodyImage2Url;
 
   if (title.trim() !== article.title) {
-    article.slug = uniqueSlug(title, article._id.toString().slice(-6));
+    article.slug = makeSlug(title);
   }
   article.title = title.trim();
   article.bodyParagraph1 = bodyParagraph1 || '';
@@ -148,7 +147,7 @@ exports.clone = async (req, res) => {
     tiktokProduct: original.tiktokProduct,
     isTopNews: original.isTopNews,
   });
-  clone.slug = uniqueSlug(clone.title, clone._id.toString().slice(-6));
+  clone.slug = makeSlug(clone.title);
 
   await clone.save();
   req.flash('success', 'Đã nhân bản bài viết.');
