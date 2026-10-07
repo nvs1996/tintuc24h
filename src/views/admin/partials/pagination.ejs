@@ -1,0 +1,11 @@
+<% if (totalPages > 1) { %>
+  <div class="admin-pagination">
+    <% for (let p = 1; p <= totalPages; p++) { %>
+      <% if (p === page) { %>
+        <span class="current"><%= p %></span>
+      <% } else { %>
+        <a href="?page=<%= p %><%= q ? '&q=' + encodeURIComponent(q) : '' %><%= sort ? '&sort=' + encodeURIComponent(sort) : '' %>"><%= p %></a>
+      <% } %>
+    <% } %>
+  </div>
+<% } %>

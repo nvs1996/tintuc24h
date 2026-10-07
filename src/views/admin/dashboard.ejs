@@ -1,0 +1,8 @@
+<%- include('partials/header', { pageTitle: 'Tổng quan', active: 'dashboard' }) %>
+<div class="admin-topbar"><h2>Tổng quan</h2></div>
+<div class="stat-grid">
+  <div class="stat-card"><div class="num"><%= articleCount %></div><div class="label">Bài viết</div></div>
+  <div class="stat-card"><div class="num"><%= categoryCount %></div><div class="label">Danh mục</div></div>
+  <div class="stat-card"><div class="num"><%= tiktokCount %></div><div class="label">TikTok Products</div></div>
+</div>
+<%- include('partials/footer') %>

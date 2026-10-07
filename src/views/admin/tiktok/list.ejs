@@ -1,0 +1,58 @@
+<%- include('../partials/header', { pageTitle: 'TikTok Products', active: 'tiktok' }) %>
+<div class="admin-topbar">
+  <h2>TikTok Products</h2>
+  <a class="btn" href="/admin/tiktok/new">+ Thêm sản phẩm</a>
+</div>
+<% error.forEach(function(e) { %><div class="alert error"><%= e %></div><% }) %>
+<% success.forEach(function(s) { %><div class="alert success"><%= s %></div><% }) %>
+
+<form method="GET" class="admin-search-form">
+  <input type="text" name="q" value="<%= q %>" placeholder="Tìm theo tiêu đề...">
+  <% if (sort) { %><input type="hidden" name="sort" value="<%= sort %>"><% } %>
+  <button class="btn" type="submit">Tìm</button>
+  <% if (q) { %><a class="btn secondary" href="?<%= sort ? 'sort=' + sort : '' %>">Xóa lọc</a><% } %>
+</form>
+
+<div class="card">
+  <table>
+    <thead>
+      <tr>
+        <th>STT</th>
+        <th>Ảnh</th>
+        <th>Tiêu đề</th>
+        <th>Loại</th>
+        <th>Link TikTok</th>
+        <th>
+          <a class="sort-link" href="?<%= q ? 'q=' + encodeURIComponent(q) + '&' : '' %>sort=<%= sort === 'clicks_desc' ? 'clicks_asc' : 'clicks_desc' %>">
+            Lượt click <%= sort === 'clicks_desc' ? '▼' : (sort === 'clicks_asc' ? '▲' : '') %>
+          </a>
+        </th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% products.forEach(function(p, i) { %>
+        <tr>
+          <td><%= (page - 1) * perPage + i + 1 %></td>
+          <td><% if (p.image) { %><img src="<%= p.image %>"><% } %></td>
+          <td><%= p.title %></td>
+          <td><%= p.type %></td>
+          <td><a href="<%= p.tiktokLink %>" target="_blank" rel="noopener"><%= p.tiktokLink %></a></td>
+          <td><%= p.clicks %></td>
+          <td>
+            <a href="/admin/tiktok/<%= p._id %>/edit">Sửa</a>
+            &nbsp;|&nbsp;
+            <form method="POST" action="/admin/tiktok/<%= p._id %>/delete" style="display:inline" onsubmit="return confirm('Xóa sản phẩm này?');">
+              <button type="submit" style="background:none;border:none;color:#b91c1c;cursor:pointer;padding:0;font-size:14px;">Xóa</button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+      <% if (!products.length) { %><tr><td colspan="7">Không có sản phẩm nào.</td></tr><% } %>
+    </tbody>
+  </table>
+</div>
+
+<%- include('../partials/pagination', { page, totalPages, q, sort }) %>
+
+<%- include('../partials/footer') %>

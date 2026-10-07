@@ -1,0 +1,13 @@
+tôi muốn prompt thử về 1 trang tin tức sử dụng nodejs, trang này sẽ có 2 site là admin và FE.
+Admin sẽ có chức năng đăng nhập, có màn đăng nhập, nhập username và mật khẩu. username mặc định là admin, mật khẩu mặc định là Momdad1211993@. Trong admin sẽ có chức năng thay đổi mật khẩu. Ngoài ra còn có quản trị CRUD bài viết, bài viết sẽ có các cột cơ bản như: id, title, image , body (trong body có thứ tự là đoạn 1, đến  ảnh 1, đoạn 2, ảnh 2, đoạn 3), category_id,  created_at, views, status (Tin chính = 1, Tin phụ = 0), tiktok_id, is_top_news.
+Admin sẽ quản lý category, category sẽ có CRUD cơ bản, cột bao gồm title và id.
+Admin sẽ quản lý tiktok product, sẽ có id, title, type, image, tiktok_link
+Ngoài ra admin sẽ có 1 phần config logo, hotline
+
+FE sẽ có giao diện giống như trang https://gocvacham.com/. Bạn hãy clone giống như trang này.
+Logo sẽ lấy ra từ config của admin, dưới logo là menu như trang gocvacham, menu item sẽ là danh sách category, ấn vào sẽ ra trang các news theo category đó.
+Dưới menu sẽ là cục Tin nóng, bao gồm 2 news có is_top_news nhưng lọc theo 2 news có id lớn nhất.
+dưới Tin nóng sẽ là 1 news được gán status là 1.
+Khi ấn vào 1 news bất kì, giao diện sẽ giống thế này:https://gocvacham.com/tin-tuc/con-re-dam-nhieu-nguoi-gia-dinh-vo-khien-4-nguoi-thuong-vong
+
+tuy nhiên tôi muốn khi vào trang news detail này được 2s thì hiện 1 popup hiện tiktok image theo tiktok liên kết với news này, popup sẽ có nút close, nếu ấn close thì mở 1 trang titkok theo tiktok_link, sau khi người dùng vào link tiktok thì mới đóng popup và cho xem content của news

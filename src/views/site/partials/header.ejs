@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= typeof pageTitle !== 'undefined' ? pageTitle : 'Tin Tức 24h' %></title>
+  <link rel="stylesheet" href="/css/site.css">
+</head>
+<body>
+  <div class="site-header-wrap">
+  <header class="site-header">
+    <div class="container site-header__top">
+      <div>
+        <a href="/" class="site-header__logo">
+          <% if (siteConfig && siteConfig.logo) { %>
+            <img src="<%= siteConfig.logo %>" alt="Logo" class="site-header__logo-icon">
+          <% } %>
+          <span class="fallback-logo">TinTức24h</span>
+        </a>
+        <div class="site-header__tagline">Tin nóng &ndash; Video hot &ndash; Góc nhìn thật</div>
+      </div>
+      <% if (siteConfig && siteConfig.hotline) { %>
+        <div class="site-header__hotline"><span>Hotline:</span><%= siteConfig.hotline %></div>
+      <% } %>
+    </div>
+  </header>
+
+  <nav class="site-nav">
+    <div class="container">
+      <ul>
+        <li><a href="/" class="<%= typeof activeCategory === 'undefined' ? 'active' : '' %>">Trang chủ</a></li>
+        <% categories.forEach(function(cat) { %>
+          <li>
+            <a href="/danh-muc/<%= cat.slug %>" class="<%= typeof activeCategory !== 'undefined' && activeCategory === cat.slug ? 'active' : '' %>">
+              <%= cat.title %>
+            </a>
+          </li>
+        <% }) %>
+      </ul>
+    </div>
+  </nav>
+  </div>
+
+  <main class="container">

@@ -1,0 +1,19 @@
+<%- include('partials/header', { pageTitle: 'Cấu hình chung', active: 'config' }) %>
+<div class="admin-topbar"><h2>Cấu hình chung</h2></div>
+<div class="card" style="max-width:480px;">
+  <% error.forEach(function(e) { %><div class="alert error"><%= e %></div><% }) %>
+  <% success.forEach(function(s) { %><div class="alert success"><%= s %></div><% }) %>
+  <form method="POST" action="/admin/config" enctype="multipart/form-data">
+    <div class="form-group">
+      <label>Logo</label>
+      <input type="file" name="logo" accept="image/*" data-preview="preview-logo">
+      <br><img id="preview-logo" class="thumb-preview" style="display:<%= config.logo ? 'block' : 'none' %>;" src="<%= config.logo || '' %>">
+    </div>
+    <div class="form-group">
+      <label>Hotline</label>
+      <input type="text" name="hotline" value="<%= config.hotline %>">
+    </div>
+    <button class="btn" type="submit">Lưu</button>
+  </form>
+</div>
+<%- include('partials/footer') %>

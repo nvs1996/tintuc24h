@@ -1,0 +1,82 @@
+<%- include('../partials/header', { pageTitle: article ? 'Sửa bài viết' : 'Thêm bài viết', active: 'articles' }) %>
+<div class="admin-topbar"><h2><%= article ? 'Sửa bài viết' : 'Thêm bài viết' %></h2></div>
+<div class="card">
+  <% error.forEach(function(e) { %><div class="alert error"><%= e %></div><% }) %>
+  <form method="POST" action="<%= article ? ('/admin/articles/' + article._id) : '/admin/articles' %>" enctype="multipart/form-data">
+
+    <div class="form-group">
+      <label>Tiêu đề</label>
+      <input type="text" name="title" required value="<%= article ? article.title : '' %>">
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Danh mục</label>
+        <select name="categoryId" required>
+          <option value="">-- Chọn danh mục --</option>
+          <% categories.forEach(function(cat) { %>
+            <option value="<%= cat._id %>" <%= article && String(article.category) === String(cat._id) ? 'selected' : '' %>><%= cat.title %></option>
+          <% }) %>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Trạng thái</label>
+        <select name="status">
+          <option value="0" <%= !article || article.status === 0 ? 'selected' : '' %>>Tin phụ</option>
+          <option value="1" <%= article && article.status === 1 ? 'selected' : '' %>>Tin chính</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>TikTok Product liên kết (tùy chọn)</label>
+        <select name="tiktokProductId">
+          <option value="">-- Không liên kết --</option>
+          <% tiktokProducts.forEach(function(p) { %>
+            <option value="<%= p._id %>" <%= article && article.tiktokProduct && String(article.tiktokProduct) === String(p._id) ? 'selected' : '' %>><%= p.title %></option>
+          <% }) %>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="checkbox-row" style="margin-top:32px;">
+          <input type="checkbox" name="isTopNews" <%= article && article.isTopNews ? 'checked' : '' %>>
+          Tin nổi bật (Hot News)
+        </label>
+      </div>
+    </div>
+
+    <hr style="margin:20px 0;border:none;border-top:1px solid #e2e2e2;">
+    <h3 style="font-size:14px;">Nội dung bài viết</h3>
+    <p style="font-size:12px;color:#666;margin-top:-8px;">Ảnh 1 được dùng làm ảnh đại diện hiển thị ở FE (trang chủ, danh mục). Đoạn 1 luôn hiển thị in đậm ở FE.</p>
+
+    <div class="form-group">
+      <label>Đoạn 1</label>
+      <textarea name="bodyParagraph1"><%= article ? article.bodyParagraph1 : '' %></textarea>
+    </div>
+    <div class="form-group">
+      <label>Ảnh 1 (upload hoặc dán URL)</label>
+      <input type="file" name="bodyImage1" accept="image/*" data-preview="preview-bodyImage1">
+      <input type="text" name="bodyImage1Url" placeholder="hoặc dán URL/đường dẫn ảnh" value="<%= article ? article.bodyImage1 : '' %>" data-preview-url-for="preview-bodyImage1" style="margin-top:6px;">
+      <img id="preview-bodyImage1" class="thumb-preview" style="display:<%= article && article.bodyImage1 ? 'block' : 'none' %>;" src="<%= article && article.bodyImage1 ? article.bodyImage1 : '' %>">
+    </div>
+    <div class="form-group">
+      <label>Đoạn 2</label>
+      <textarea name="bodyParagraph2"><%= article ? article.bodyParagraph2 : '' %></textarea>
+    </div>
+    <div class="form-group">
+      <label>Ảnh 2 (upload hoặc dán URL)</label>
+      <input type="file" name="bodyImage2" accept="image/*" data-preview="preview-bodyImage2">
+      <input type="text" name="bodyImage2Url" placeholder="hoặc dán URL/đường dẫn ảnh" value="<%= article ? article.bodyImage2 : '' %>" data-preview-url-for="preview-bodyImage2" style="margin-top:6px;">
+      <img id="preview-bodyImage2" class="thumb-preview" style="display:<%= article && article.bodyImage2 ? 'block' : 'none' %>;" src="<%= article && article.bodyImage2 ? article.bodyImage2 : '' %>">
+    </div>
+    <div class="form-group">
+      <label>Đoạn 3</label>
+      <textarea name="bodyParagraph3"><%= article ? article.bodyParagraph3 : '' %></textarea>
+    </div>
+
+    <button class="btn" type="submit">Lưu</button>
+    <a class="btn secondary" href="/admin/articles">Hủy</a>
+  </form>
+</div>
+<%- include('../partials/footer') %>

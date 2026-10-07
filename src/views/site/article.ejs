@@ -1,0 +1,49 @@
+<%- include('partials/header', { pageTitle: article.title + ' - TinTức24h', activeCategory: article.category ? article.category.slug : undefined }) %>
+
+<div class="breadcrumb">
+  <a href="/">Trang chủ</a> &rsaquo;
+  <% if (article.category) { %><a href="/danh-muc/<%= article.category.slug %>"><%= article.category.title %></a> &rsaquo; <% } %>
+  <%= article.title %>
+</div>
+
+<div class="article-layout">
+  <div id="article-content-wrapper" class="article-content-wrapper">
+    <article class="article">
+      <h1><%= article.title %></h1>
+      <div class="meta">
+        <span><%= article.category ? article.category.title : '' %></span>
+        <span><%- include('partials/icon-clock') %> <%= new Date(article.createdAt).toLocaleString('vi-VN') %></span>
+        <span><%- include('partials/icon-eye') %> <%= formatViews(article._id) %> lượt xem</span>
+      </div>
+
+      <% if (article.bodyParagraph1) { %><p><strong><%= article.bodyParagraph1 %></strong></p><% } %>
+      <% if (article.bodyImage1) { %><img src="<%= article.bodyImage1 %>" alt=""><% } %>
+      <% if (article.bodyParagraph2) { %><p><%= article.bodyParagraph2 %></p><% } %>
+      <% if (article.bodyImage2) { %><img src="<%= article.bodyImage2 %>" alt=""><% } %>
+      <% if (article.bodyParagraph3) { %><p><%= article.bodyParagraph3 %></p><% } %>
+    </article>
+  </div>
+
+  <aside class="most-read">
+    <h3>Đọc nhiều nhất</h3>
+    <ol>
+      <% mostRead.forEach(function(a) { %>
+        <li><a href="/tin-tuc/<%= a.slug %>"><%= a.title %></a> <span style="color:#999;font-size:12px;">(<%= formatViews(a._id) %>)</span></li>
+      <% }) %>
+    </ol>
+  </aside>
+</div>
+
+<% if (popup) { %>
+  <span id="tiktok-gate-trigger" data-tiktok-link="<%= popup.tiktokLink %>" data-tiktok-id="<%= popup.tiktokId %>" style="display:none"></span>
+  <div id="tiktok-gate-overlay" class="tiktok-gate-overlay" style="display:none">
+    <div class="tiktok-gate-card">
+      <button id="tiktok-gate-close-x" class="tiktok-gate-close-x tiktok-gate-action" type="button" aria-label="Đóng">&times;</button>
+      <img src="<%= popup.image || '/images/placeholder.svg' %>" alt="">
+      <h2 class="tiktok-gate-headline">Truy cập TikTok để xem thêm và sản phẩm này.</h2>
+      <button id="tiktok-gate-close" class="tiktok-gate-close tiktok-gate-action" type="button">Xem trên TikTok</button>
+    </div>
+  </div>
+<% } %>
+
+<%- include('partials/footer') %>

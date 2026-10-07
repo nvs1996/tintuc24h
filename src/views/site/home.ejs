@@ -1,0 +1,116 @@
+<%- include('partials/header', { pageTitle: 'TinTức24h - Trang chủ' }) %>
+
+<% if (topNews.length) { %>
+  <section class="hot-news">
+    <h2 class="hot-news__title">Tin nóng</h2>
+    <ul class="hot-news__list">
+      <% topNews.forEach(function(article) { %>
+        <li class="hot-news__item"><a href="/tin-tuc/<%= article.slug %>"><%= article.title %></a></li>
+      <% }) %>
+    </ul>
+  </section>
+<% } %>
+
+<% if (mainNews.length) { %>
+  <section class="featured">
+    <h2 class="featured__title">Tin nổi bật</h2>
+    <div class="featured__grid">
+      <% var mainArticle = mainNews[0]; %>
+      <a class="featured__main" href="/tin-tuc/<%= mainArticle.slug %>">
+        <div class="featured__main-media">
+          <img src="<%= mainArticle.bodyImage1 || '/images/placeholder.svg' %>" alt="<%= mainArticle.title %>">
+          <span class="news-badge news-badge--hot">TIN NÓNG</span>
+        </div>
+        <div class="featured__main-body">
+          <% if (mainArticle.category) { %><span class="category-tag"><%= mainArticle.category.title %></span><% } %>
+          <h3><%= mainArticle.title %></h3>
+          <p class="excerpt"><strong><%= mainArticle.bodyParagraph1 %></strong></p>
+          <div class="meta"><%- include('partials/icon-eye') %> <%= formatViews(mainArticle._id) %> lượt xem</div>
+        </div>
+      </a>
+
+      <ul class="featured__secondary">
+        <% recentForFeatured.forEach(function(article) { %>
+          <li>
+            <a href="/tin-tuc/<%= article.slug %>">
+              <div class="featured__secondary-media">
+                <img src="<%= article.bodyImage1 || '/images/placeholder.svg' %>" alt="<%= article.title %>">
+              </div>
+              <div class="featured__secondary-body">
+                <span class="news-badge-pill">TIN NỔI BẬT</span>
+                <span class="featured__secondary-title"><%= article.title %></span>
+                <span class="featured__secondary-meta"><%- include('partials/icon-clock') %> <%= new Date(article.createdAt).toLocaleDateString('vi-VN') %> &middot; <%- include('partials/icon-eye') %> <%= formatViews(article._id) %></span>
+              </div>
+            </a>
+          </li>
+        <% }) %>
+      </ul>
+    </div>
+  </section>
+<% } %>
+
+<div class="home-layout">
+  <div class="home-main">
+    <h2 class="text-lg font-black uppercase tracking-wide text-ink"><span class="mr-2 inline-block h-4 w-1.5 translate-y-0.5 bg-brand"></span>Tin mới nhất</h2>
+    <section class="news-list">
+      <% latestNews.forEach(function(article) { %>
+        <a class="news-list__item" href="/tin-tuc/<%= article.slug %>">
+          <img src="<%= article.bodyImage1 || '/images/placeholder.svg' %>" alt="<%= article.title %>">
+          <div>
+            <% if (article.category) { %><span class="category-tag"><%= article.category.title %></span><% } %>
+            <h3><%= article.title %></h3>
+            <% if (article.bodyParagraph1) { %><p class="excerpt-short"><%= truncate(article.bodyParagraph1, 200) %></p><% } %>
+            <div class="meta"><%- include('partials/icon-clock') %> <%= new Date(article.createdAt).toLocaleDateString('vi-VN') %> &middot; <%- include('partials/icon-eye') %> <%= formatViews(article._id) %> lượt xem</div>
+          </div>
+        </a>
+      <% }) %>
+      <% if (!latestNews.length) { %><p>Chưa có bài viết nào.</p><% } %>
+    </section>
+
+    <% if (totalPages > 1) { %>
+      <div class="pagination">
+        <% for (let p = 1; p <= totalPages; p++) { %>
+          <% if (p === page) { %>
+            <span class="current"><%= p %></span>
+          <% } else { %>
+            <a href="/?page=<%= p %>"><%= p %></a>
+          <% } %>
+        <% } %>
+      </div>
+    <% } %>
+  </div>
+
+  <div class="home-sidebar">
+    <div>
+      <h2 class="text-lg font-black uppercase tracking-wide text-ink"><span class="mr-2 inline-block h-4 w-1.5 translate-y-0.5 bg-brand"></span>Đọc nhiều nhất</h2>
+      <aside class="most-read-home">
+        <ol class="most-read-home__list">
+          <% mostRead.forEach(function(article, i) { %>
+            <li>
+              <span class="most-read-home__rank"><%= i + 1 %></span>
+              <div class="most-read-home__body">
+                <a href="/tin-tuc/<%= article.slug %>" class="most-read-home__title"><%= article.title %></a>
+                <div class="most-read-home__meta"><%= formatViews(article._id) %> lượt xem</div>
+              </div>
+            </li>
+          <% }) %>
+          <% if (!mostRead.length) { %><li>Chưa có bài viết nào.</li><% } %>
+        </ol>
+      </aside>
+    </div>
+
+    <div>
+      <h2 class="text-lg font-black uppercase tracking-wide text-ink"><span class="mr-2 inline-block h-4 w-1.5 translate-y-0.5 bg-brand"></span>Chuyên mục</h2>
+      <aside class="categories-widget">
+        <div class="categories-widget__list">
+          <% categories.forEach(function(cat) { %>
+            <a class="categories-widget__pill" href="/danh-muc/<%= cat.slug %>"><%= cat.title %></a>
+          <% }) %>
+          <% if (!categories.length) { %><span>Chưa có danh mục nào.</span><% } %>
+        </div>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/footer') %>

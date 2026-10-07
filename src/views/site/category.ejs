@@ -1,0 +1,31 @@
+<%- include('partials/header', { pageTitle: category.title + ' - TinTức24h', activeCategory: category.slug }) %>
+
+<div class="breadcrumb"><a href="/">Trang chủ</a> &rsaquo; <%= category.title %></div>
+
+<section class="news-list">
+  <% articles.forEach(function(article) { %>
+    <a class="news-list__item" href="/tin-tuc/<%= article.slug %>">
+      <img src="<%= article.bodyImage1 || '/images/placeholder.svg' %>" alt="<%= article.title %>">
+      <div>
+        <h3><%= article.title %></h3>
+        <% if (article.bodyParagraph1) { %><p class="excerpt-short"><%= truncate(article.bodyParagraph1, 200) %></p><% } %>
+        <div class="meta"><%- include('partials/icon-clock') %> <%= new Date(article.createdAt).toLocaleDateString('vi-VN') %> &middot; <%- include('partials/icon-eye') %> <%= formatViews(article._id) %> lượt xem</div>
+      </div>
+    </a>
+  <% }) %>
+  <% if (!articles.length) { %><p>Chưa có bài viết nào trong chuyên mục này.</p><% } %>
+</section>
+
+<% if (totalPages > 1) { %>
+  <div class="pagination">
+    <% for (let p = 1; p <= totalPages; p++) { %>
+      <% if (p === page) { %>
+        <span class="current"><%= p %></span>
+      <% } else { %>
+        <a href="/danh-muc/<%= category.slug %>?page=<%= p %>"><%= p %></a>
+      <% } %>
+    <% } %>
+  </div>
+<% } %>
+
+<%- include('partials/footer') %>

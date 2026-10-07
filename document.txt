@@ -1,0 +1,811 @@
+=====================================================================
+ TÀI LIỆU KỸ THUẬT DỰ ÁN: TinTuc24h (Node.js News Site)
+ File này ghi lại TOÀN BỘ logic hiện tại của dự án + lịch sử các lỗi
+ đã gặp/đã fix, để mở phiên làm việc mới (Claude khác, hoặc dev khác)
+ có thể đọc và fix bug/chỉnh sửa nhanh mà không cần dò lại từ đầu.
+=====================================================================
+
+MỤC LỤC
+1. Tổng quan & Stack công nghệ
+2. Cấu trúc thư mục (đầy đủ, cập nhật mới nhất)
+3. Cách chạy dự án (dev / seed)
+4. Biến môi trường (.env)
+5. Kết nối Database (điểm quan trọng - dễ gây nhầm lẫn)
+6. Data Models (Schema MongoDB) - CẬP NHẬT MỚI NHẤT
+7. Luồng xác thực Admin (Auth)
+8. Upload ảnh (Multer)
+9. Routes - Admin panel (đầy đủ, có search/sort/pagination)
+10. Routes - Frontend (site)
+11. Trang chủ (Home) - toàn bộ các khối, thứ tự, dữ liệu
+12. Trang chi tiết bài viết & Popup TikTok Gate + click tracking
+13. Lượt xem "ảo" hiển thị ở FE (formatViews) vs lượt xem thật
+14. Trang danh mục & Header/Footer (sticky header, logo tròn, footer)
+15. Admin: danh sách bài viết/TikTok - search, sort, STT, ghim status=1
+16. Views (EJS) - CẢNH BÁO LỖI ĐÃ GẶP (include tag)
+17. Ảnh placeholder khi không có ảnh
+18. Danh sách lỗi/bug đã gặp & cách đã fix (đọc trước khi debug lại)
+19. Theme màu hiện tại
+20. Việc còn tồn đọng / nên cải thiện thêm
+
+
+---------------------------------------------------------------------
+1. TỔNG QUAN & STACK CÔNG NGHỆ
+---------------------------------------------------------------------
+- Web tin tức có 2 phần: Admin panel (quản trị) và Frontend (giao diện
+  người đọc, layout phỏng theo gocvacham.com nhưng đã tùy biến nhiều
+  theo yêu cầu riêng - xem mục 11, 14).
+- Stack: Node.js + Express + EJS (render HTML phía server, không phải
+  SPA/React) + MongoDB (Mongoose ODM).
+- Auth: session (express-session) + bcryptjs để hash mật khẩu.
+- Upload ảnh: multer, lưu file thẳng vào ổ đĩa (public/uploads/).
+- Không có Docker/container trong dự án này. Không cần "rebuild
+  container" khi sửa code - chỉ cần sửa file và restart server (hoặc
+  không cần restart nếu chỉ sửa file .ejs/.css/.js phía client trong
+  public/, xem mục 16).
+
+
+---------------------------------------------------------------------
+2. CẤU TRÚC THƯ MỤC (đầy đủ, cập nhật mới nhất)
+---------------------------------------------------------------------
+src/
+  app.js              Khởi tạo Express app, gắn middleware, gắn routes,
+                      gắn app.locals.formatViews + app.locals.truncate
+                      (2 helper function dùng chung trong mọi view EJS)
+  server.js           Entry point: connect DB -> ensureAdmin() -> listen()
+  config/db.js        Kết nối Mongoose (có fallback MongoDB in-memory)
+  models/
+    Admin.js
+    Category.js
+    Article.js          KHÔNG còn field "image" (đã bỏ - xem mục 6)
+    TiktokProduct.js     Có field "clicks" (đếm số lượt click sang TikTok)
+    SiteConfig.js
+  middleware/
+    auth.js            requireAuth, redirectIfAuthed (check session)
+    upload.js           Cấu hình multer (thư mục, tên file, giới hạn)
+  utils/
+    text.js             truncate(text, max), escapeRegex(text)
+    displayViews.js      formatDisplayViews(id) - sinh số "lượt xem ảo"
+  controllers/
+    admin/
+      authController.js
+      articleController.js  list (search+sort+phân trang+ghim status=1),
+                            create/update/showNew/showEdit, clone, remove
+      categoryController.js
+      tiktokController.js   list (search+sort+phân trang), CRUD
+      configController.js
+    site/
+      siteController.js    home, category, articleDetail,
+                          trackTiktokClick (POST /api/tiktok-click/:id)
+  routes/
+    admin.js            Tất cả route /admin/*
+    site.js             Tất cả route công khai
+  seed/
+    ensureAdmin.js       Logic tạo tài khoản admin đầu tiên (idempotent)
+    seedAdmin.js         Script CLI gọi ensureAdmin (npm run seed)
+  views/
+    admin/
+      login.ejs, dashboard.ejs, change-password.ejs, config.ejs
+      partials/header.ejs, footer.ejs, pagination.ejs (dùng chung cho
+        list bài viết + list tiktok)
+      articles/list.ejs, form.ejs
+      categories/list.ejs, form.ejs
+      tiktok/list.ejs, form.ejs
+    site/
+      home.ejs            Trang chủ - xem chi tiết mục 11
+      category.ejs          Trang danh mục (có phân trang riêng)
+      article.ejs           Trang chi tiết + popup TikTok gate
+      404.ejs
+      partials/
+        header.ejs          <head>, header sticky, nav menu
+        footer.ejs          footer (logo tròn + text + mô tả + liên hệ)
+        icon-eye.ejs        SVG icon con mắt (dùng trước "lượt xem")
+        icon-clock.ejs      SVG icon đồng hồ (dùng trước ngày tháng)
+public/
+  css/site.css           Style frontend - theme XANH LÁ (xem mục 19)
+  css/admin.css           Style admin panel - theme XANH DƯƯƠNG (mục 19)
+  js/site.js              Logic popup TikTok gate + đồng bộ chiều cao
+                          featured__secondary theo featured__main
+  js/admin.js             Preview ảnh trực tiếp khi chọn file trong form
+  images/placeholder.svg  Ảnh thay thế khi bài/product không có ảnh
+                          (KHÔNG dùng dịch vụ ngoài, xem mục 17)
+  uploads/                Nơi lưu file ảnh người dùng upload qua admin
+.env                     Biến môi trường THẬT (không commit, đã gitignore)
+.env.example             Mẫu biến môi trường để tham khảo
+document.txt             Chính là file này
+
+
+---------------------------------------------------------------------
+3. CÁCH CHẠY DỰ ÁN
+---------------------------------------------------------------------
+  npm install              # cài dependency
+  npm run dev              # chạy với nodemon (tự restart khi sửa .js)
+  npm start                # chạy production (node thường)
+  npm run seed             # chạy ensureAdmin thủ công (chỉ có tác dụng
+                            # thật khi có MONGODB_URI thật, xem mục 5)
+
+Sau khi chạy, vào:
+  Frontend:     http://localhost:3000/
+  Admin login:  http://localhost:3000/admin/login
+
+
+---------------------------------------------------------------------
+4. BIẾN MÔI TRƯỜNG (.env)
+---------------------------------------------------------------------
+PORT                  Cổng server, mặc định 3000
+SESSION_SECRET        Chuỗi bí mật ký session cookie
+MONGODB_URI           Chuỗi kết nối MongoDB thật. ĐỂ TRỐNG = dùng
+                      MongoDB in-memory (xem mục 5, RẤT QUAN TRỌNG)
+ADMIN_USERNAME        Username admin sẽ được tạo nếu chưa có admin nào
+                      (hiện tại: admin)
+ADMIN_PASSWORD        Mật khẩu admin ban đầu (được hash bằng bcrypt khi
+                      lưu, không lưu plaintext trong DB). Giá trị thật
+                      đang để trong .env (KHÔNG ghi ra file này).
+
+LƯU Ý BẢO MẬT: không đưa ADMIN_PASSWORD thật vào file commit lên git
+hoặc gửi cho người khác. File .env đã có trong .gitignore.
+
+
+---------------------------------------------------------------------
+5. KẾT NỐI DATABASE (rất quan trọng - đọc kỹ để tránh mất thời gian)
+---------------------------------------------------------------------
+File: src/config/db.js
+
+- Nếu MONGODB_URI có giá trị -> connect vào MongoDB thật đó, dữ liệu
+  lưu bền vững như bình thường.
+
+- Nếu MONGODB_URI để TRỐNG (mặc định lúc mới build xong dự án, VẪN
+  ĐANG ĐỂ TRỐNG tính đến thời điểm viết bản cập nhật này) -> code tự
+  spawn một MongoDB "in-memory" (thư viện mongodb-memory-server) chỉ
+  tồn tại trong RAM của tiến trình node đang chạy.
+
+  HỆ QUẢ CẦN NHỚ (đã xảy ra NHIỀU LẦN trong quá trình phát triển):
+  * Mỗi lần restart server (tắt/bật lại `node src/server.js`, hoặc
+    nodemon tự restart khi sửa file .js) -> TOÀN BỘ dữ liệu mất sạch
+    (bài viết, danh mục, tiktok product, mật khẩu admin đã đổi qua màn
+    "Đổi mật khẩu", lượt view/click thật đã tích lũy...).
+  * Sau mỗi lần restart, server tự tạo lại 1 tài khoản admin mới từ
+    ADMIN_USERNAME/ADMIN_PASSWORD trong .env (xem mục 7).
+  * `npm run seed` chạy RIÊNG một tiến trình khác -> nếu đang ở chế độ
+    in-memory thì seed sẽ tạo ra 1 DB in-memory KHÁC, không liên quan
+    gì tới DB của server đang chạy. Script seed chỉ thực sự hữu ích
+    khi có MONGODB_URI thật.
+  * BẤT KỲ thay đổi code nào ở file .js (controller/model/route/app.js)
+    đều cần restart server -> đều làm mất dữ liệu đang có trong phiên
+    làm việc hiện tại. Đây là nguyên nhân của rất nhiều lần "tự nhiên
+    mất hết bài viết/tiktok product" trong quá trình build/fix tính
+    năng mới.
+
+  MUỐN DỮ LIỆU LƯU LÂU DÀI (không mất khi restart):
+  -> Cài MongoDB thật (mongod local, Docker, hoặc MongoDB Atlas free
+     tier), rồi set MONGODB_URI trong .env, restart lại server.
+     NÊN LÀM SỚM nếu chuẩn bị đưa nội dung thật lên.
+
+
+---------------------------------------------------------------------
+6. DATA MODELS (Mongoose Schema) - CẬP NHẬT MỚI NHẤT
+---------------------------------------------------------------------
+
+Admin (src/models/Admin.js)
+  username       String, unique
+  passwordHash   String (bcrypt hash, KHÔNG lưu plaintext)
+
+Category (src/models/Category.js)
+  title          String
+  slug           String, unique (tự sinh từ title bằng slugify)
+
+TiktokProduct (src/models/TiktokProduct.js)
+  title          String
+  type           String (tự do, không enum cố định)
+  image          String (đường dẫn "/uploads/xxx.jpg")
+  tiktokLink     String (URL video/trang TikTok)
+  clicks         Number, default 0 - CỘT MỚI, đếm số lần user bấm nút
+                 "Xem trên TikTok" / nút X trong popup TikTok gate ở
+                 trang chi tiết bài viết (xem mục 12). Tăng qua endpoint
+                 POST /api/tiktok-click/:id (siteController.trackTiktokClick).
+                 Admin xem/sort được cột này ở /admin/tiktok (mục 15).
+
+SiteConfig (src/models/SiteConfig.js)  -- SINGLETON (chỉ có 1 document)
+  logo           String (đường dẫn ảnh logo, hiển thị DẠNG TRÒN - xem
+                 mục 14 - và LUÔN đi kèm chữ "TinTức24h" bên cạnh,
+                 KHÔNG thay thế chữ)
+  hotline        String
+  Lấy config bằng SiteConfig.getSingleton() - tự tạo document rỗng nếu
+  chưa có cái nào.
+
+Article (src/models/Article.js)  -- MODEL QUAN TRỌNG NHẤT
+  title            String
+  slug             String, unique (dạng: slug-title + 6 ký tự cuối
+                    của _id, để tránh trùng, sinh trong
+                    articleController.uniqueSlug())
+  (ĐÃ BỎ field "image"/ảnh đại diện riêng - xem lý do ở mục 18, bug #4.
+   Ảnh đại diện/thumbnail hiển thị ở FE (trang chủ, danh mục, admin
+   list) giờ LUÔN LẤY TỪ bodyImage1.)
+  bodyParagraph1   String - đoạn văn 1. LUÔN hiển thị IN ĐẬM (<strong>)
+                    ở FE (trang chi tiết + excerpt "Tin nổi bật" ở
+                    trang chủ).
+  bodyImage1       String - ảnh 1 (chèn giữa đoạn 1 và đoạn 2 trong bài
+                    chi tiết). ĐỒNG THỜI dùng làm ảnh đại diện/thumbnail
+                    ở mọi nơi khác trên FE và ở cột "Ảnh" trong admin
+                    list bài viết.
+  bodyParagraph2   String - đoạn văn 2
+  bodyImage2       String - ảnh 2 (chèn giữa đoạn 2 và đoạn 3)
+  bodyParagraph3   String - đoạn văn 3
+  category         ObjectId ref Category (bắt buộc)
+  views            Number, default 0, tự +1 mỗi lần có người xem
+                    trang chi tiết (xem mục 12). Đây là số THẬT, dùng
+                    để: (a) sort "Đọc nhiều nhất", (b) sort cột "Lượt
+                    xem" trong admin. KHÔNG hiển thị số này trực tiếp
+                    cho khách ở FE (xem mục 13 - số hiển thị FE là số ảo).
+  status           Number, chỉ nhận 0 hoặc 1
+                    1 = Tin chính (main news). Luôn được ƯU TIÊN hiển
+                      thị: là ảnh to bên trái khối "Tin nổi bật" ở
+                      trang chủ; và trong admin list bài viết, mọi bài
+                      status=1 LUÔN bị/được ghim lên đầu danh sách (bất
+                      kể đang search/sort gì) + có highlight nền xanh
+                      dương nhạt (xem mục 15).
+                    0 = Tin phụ (secondary, hiển thị trong "Tin mới nhất").
+  tiktokProduct    ObjectId ref TiktokProduct, có thể null - nếu có
+                    thì trang chi tiết sẽ hiện popup TikTok gate (mục 12)
+  isTopNews        Boolean - đánh dấu bài thuộc khu "Tin nóng" (ticker
+                    chữ ở đầu trang chủ, KHÔNG có ảnh - xem mục 11)
+  createdAt/updatedAt  tự động (timestamps: true)
+
+
+---------------------------------------------------------------------
+7. LUỒNG XÁC THỰC ADMIN (Auth)
+---------------------------------------------------------------------
+- File: src/controllers/admin/authController.js,
+        src/middleware/auth.js,
+        src/seed/ensureAdmin.js
+
+- Khởi động server (src/server.js):
+    connectDB() -> ensureAdmin() -> app.listen()
+  ensureAdmin() kiểm tra: nếu CHƯA có admin nào trong DB thì tạo 1 cái
+  từ ADMIN_USERNAME/ADMIN_PASSWORD (.env), hash password bằng bcrypt.
+  Nếu ĐÃ có admin rồi thì bỏ qua (không ghi đè mật khẩu đã đổi).
+
+- Login (POST /admin/login): so sánh bcrypt.compare(password nhập,
+  admin.passwordHash). Nếu đúng -> lưu req.session.adminId, redirect
+  vào /admin.
+
+- Middleware requireAuth (src/middleware/auth.js): mọi route /admin/*
+  (trừ /admin/login) đều check req.session.adminId, nếu không có thì
+  redirect về /admin/login.
+
+- Đổi mật khẩu (/admin/change-password): yêu cầu nhập đúng mật khẩu
+  hiện tại, mật khẩu mới TỐI THIỂU 8 KÝ TỰ, xác nhận khớp. Lưu ý: mật
+  khẩu ngắn hơn 8 ký tự (vd yêu cầu đặt "banhbao" - 7 ký tự) sẽ bị màn
+  này từ chối; muốn đặt mật khẩu ngắn hơn 8 ký tự làm password MẶC ĐỊNH
+  thì sửa trực tiếp ADMIN_PASSWORD trong .env rồi restart server (bootstrap
+  lúc start KHÔNG kiểm tra độ dài).
+
+  LƯU Ý: nếu đang chạy ở chế độ MongoDB in-memory (mục 5), đổi mật
+  khẩu ở đây sẽ MẤT khi restart server (vì admin bị tạo lại từ .env).
+  Muốn đổi mật khẩu vĩnh viễn phải dùng MongoDB thật.
+
+
+---------------------------------------------------------------------
+8. UPLOAD ẢNH (Multer)
+---------------------------------------------------------------------
+File: src/middleware/upload.js
+
+- Lưu file vào: public/uploads/ (đường dẫn tuyệt đối tính từ
+  __dirname của file upload.js, đi lên 2 cấp rồi vào public/uploads).
+- Tên file được đổi thành: <timestamp>-<6 byte random hex>.<đuôi gốc>
+  để tránh trùng tên / ghi đè file cũ.
+- Chỉ cho phép đuôi: .jpg .jpeg .png .gif .webp
+- Giới hạn dung lượng: 5MB / file (multer limits.fileSize).
+- File ảnh sau khi upload được serve tĩnh qua express.static ở
+  app.js -> URL truy cập là "/uploads/<tên file>".
+
+Nơi dùng upload.single() / upload.fields():
+  - TikTok product form: upload.single('image')
+  - Site config (logo): upload.single('logo') - logo hiển thị DẠNG
+    TRÒN ở FE (mục 14), KHÔNG có tính năng "gỡ logo" - chỉ ghi đè bằng
+    cách upload logo mới.
+  - Article form: upload.fields([
+      {name:'bodyImage1'}, {name:'bodyImage2'}
+    ])  -- ĐÃ BỎ field 'image' (ảnh đại diện) khỏi đây, xem mục 6+18.
+    Ảnh bodyImage1/bodyImage2 CÓ THỂ nhập bằng cách upload file HOẶC
+    dán URL/đường dẫn trực tiếp (input bodyImage1Url / bodyImage2Url -
+    type="text", KHÔNG phải type="url" - xem lý do ở mục 18 bug #5) -
+    controller ưu tiên file upload nếu có, không thì lấy theo giá trị
+    nhập tay.
+  - Form admin có JS preview ảnh trực tiếp (public/js/admin.js): mọi
+    input[type=file] có data-preview="<id>" sẽ tự hiện ảnh preview vào
+    thẻ #<id> ngay khi chọn file, dùng URL.createObjectURL(). Input
+    dạng "dán URL" có data-preview-url-for="<id>" cũng tự cập nhật
+    preview khi gõ/dán.
+
+
+---------------------------------------------------------------------
+9. ROUTES - ADMIN PANEL (src/routes/admin.js)
+---------------------------------------------------------------------
+Auth:
+  GET  /admin/login              form đăng nhập
+  POST /admin/login               xử lý đăng nhập
+  POST /admin/logout              hủy session
+  GET  /admin/change-password
+  POST /admin/change-password
+
+Dashboard:
+  GET  /admin                     hiện tổng số bài viết/danh mục/tiktok
+
+Categories:
+  GET  /admin/categories
+  GET  /admin/categories/new
+  POST /admin/categories
+  GET  /admin/categories/:id/edit
+  POST /admin/categories/:id       (update)
+  POST /admin/categories/:id/delete
+  (Danh mục KHÔNG có search/sort/phân trang - chỉ articles và tiktok
+   có, theo yêu cầu.)
+
+TikTok products:
+  GET  /admin/tiktok               ?q=&sort=clicks_asc|clicks_desc&page=N
+                                    20 sản phẩm/trang (PER_PAGE trong
+                                    tiktokController.js)
+  GET  /admin/tiktok/new
+  POST /admin/tiktok                upload.single('image')
+  GET  /admin/tiktok/:id/edit
+  POST /admin/tiktok/:id            upload.single('image')
+  POST /admin/tiktok/:id/delete
+
+Articles:
+  GET  /admin/articles              ?q=&sort=views_asc|views_desc&page=N
+                                    20 bài/trang (PER_PAGE trong
+                                    articleController.js). Mọi query đều
+                                    tự động ghim status=1 lên đầu (sort
+                                    Mongo: { status: -1, ...sortPhu }).
+  GET  /admin/articles/new
+  POST /admin/articles               upload.fields(bodyImage1, bodyImage2)
+  GET  /admin/articles/:id/edit
+  POST /admin/articles/:id           upload.fields(bodyImage1, bodyImage2)
+  POST /admin/articles/:id/clone     NHÂN BẢN bài viết - copy toàn bộ
+                                    field (trừ slug/_id/views), title
+                                    thêm hậu tố " (Bản sao)", slug mới
+                                    sinh riêng, views về 0.
+  POST /admin/articles/:id/delete
+
+Site config:
+  GET  /admin/config
+  POST /admin/config              (logo + hotline) upload.single('logo')
+
+Cơ chế search/sort/pagination (giống nhau cho cả articles & tiktok):
+  - q: tìm theo title, dùng $regex + $options:'i' (không phân biệt hoa
+    thường), có escapeRegex() (src/utils/text.js) để tránh regex bị
+    lỗi/injection khi user gõ ký tự đặc biệt (. * + ? ...).
+  - sort: chỉ nhận đúng 1 trong các giá trị hợp lệ (views_asc/
+    views_desc cho articles; clicks_asc/clicks_desc cho tiktok) - giá
+    trị khác bị bỏ qua, fallback về mặc định (createdAt desc).
+  - page: mặc định 1, PER_PAGE=20 cho cả 2.
+  - View dùng chung partial admin/partials/pagination.ejs để render
+    số trang, tự giữ nguyên q & sort trong link chuyển trang.
+  - Cột "STT" (số thứ tự) trong list KHÔNG phải _id, mà là số thứ tự
+    liên tục theo trang: (page-1)*perPage + index + 1.
+
+
+---------------------------------------------------------------------
+10. ROUTES - FRONTEND (src/routes/site.js)
+---------------------------------------------------------------------
+  GET  /                          Trang chủ (siteController.home)
+                                  ?page=N -> phân trang khối "Tin mới
+                                  nhất" (15 bài/trang - xem mục 11)
+  GET  /danh-muc/:slug             Trang danh mục, có phân trang riêng
+                                  (siteController.category, 12 bài/trang)
+  GET  /tin-tuc/:slug               Trang chi tiết bài viết
+                                  (siteController.articleDetail)
+  POST /api/tiktok-click/:id        Tăng TiktokProduct.clicks +1 (gọi
+                                  từ JS khi user bấm nút trong popup
+                                  TikTok gate - xem mục 12)
+
+
+---------------------------------------------------------------------
+11. TRANG CHỦ (Home) - TOÀN BỘ CÁC KHỐI, THỨ TỰ, DỮ LIỆU
+---------------------------------------------------------------------
+File: src/controllers/site/siteController.js -> exports.home
+      src/views/site/home.ejs
+
+Thứ tự các khối từ trên xuống:
+
+(1) "Tin nóng" (.hot-news) - CHỈ hiện khi có bài isTopNews=true.
+    Query: Article.find({isTopNews:true}).sort({_id:-1}).limit(2)
+    -> Hiển thị dạng TICKER CHỮ (không có ảnh/card), 2 tiêu đề bài viết
+    nối nhau bằng dấu gạch đứng, click vào là sang thẳng trang chi tiết.
+    (Trước đây từng hiển thị dạng card có ảnh - đã đổi theo yêu cầu
+    thành chỉ hiện title dạng link.)
+
+(2) "Tin nổi bật" (.featured) - CHỈ hiện khi có bài status=1.
+    Gồm 2 phần trong 1 grid (.featured__grid, 2 cột: 3fr/2fr, ở mobile
+    (<=700px) xếp chồng 1 cột):
+
+    (2a) .featured__main (cột trái, to) = bài status=1 mới nhất
+         (mainNews, limit 1). Có:
+         - Ảnh (bodyImage1), aspect-ratio 4/3, max-height 500px,
+           object-fit:cover.
+         - Badge đỏ overlay góc trái-trên ảnh: "TIN NÓNG"
+           (.news-badge.news-badge--hot, luôn hiện vì đây luôn là bài
+           status=1).
+         - category-tag, tiêu đề (h3), excerpt = bodyParagraph1 IN ĐẬM,
+           lượt xem (icon mắt + formatViews).
+
+    (2b) .featured__secondary (cột phải, danh sách) = 8 bài mới nhất
+         có status=0 (recentForFeatured, limit 8 - KHÔNG phải cùng
+         mảng với latestNews của khối (3) bên dưới, là query riêng để
+         không bị ảnh hưởng bởi phân trang của khối (3)).
+         - Mỗi item: ảnh nhỏ 120x90 bên trái, bên phải là:
+           + badge pill cam bo tròn "TIN NỔI BẬT" (.news-badge-pill)
+             nằm TRÊN tiêu đề (không đè lên ảnh)
+           + tiêu đề (.featured__secondary-title)
+           + ngày (icon đồng hồ) + lượt xem (icon mắt)
+             (.featured__secondary-meta)
+         - Hover cả khung item (nền xám nhạt + viền, dùng kỹ thuật
+           padding+margin âm để không xô layout khi không hover).
+         - CHIỀU CAO của khối .featured__secondary KHÔNG phải số cố
+           định "hiện đúng 4 tin" - mà ĐỘNG, phụ thuộc chiều cao thực
+           tế của .featured__main. Cơ chế: public/js/site.js đo
+           `document.querySelector('.featured__main').offsetHeight`
+           rồi gán làm inline max-height cho .featured__secondary (chỉ
+           áp dụng khi viewport > 700px, khớp breakpoint xếp chồng của
+           .featured__grid). Nếu nội dung 8 bài dài hơn chiều cao đó ->
+           tự cuộn dọc (overflow-y:auto, có custom scrollbar mảnh).
+           CSS max-height:500px chỉ là giá trị fallback tĩnh phòng khi
+           JS chưa kịp chạy.
+
+(3) Layout 2 cột .home-layout (KHÔNG che khối (1)(2) ở trên, nằm dưới
+    cùng):
+    - Cột trái .home-main (2fr):
+        + Heading "TIN MỚI NHẤT" (đứng riêng, KHÔNG nằm trong khung
+          card - style dùng class Tailwind-like tự định nghĩa, xem
+          cuối mục này).
+        + .news-list: danh sách bài status=0, PHÂN TRANG THẬT (khác
+          với khối (2b) - đây có ?page=N, 15 bài/trang - biến `page`,
+          `totalPages` trong controller). Mỗi item gồm: ảnh
+          (bodyImage1), category-tag, tiêu đề, EXCERPT = bodyParagraph1
+          cắt tối đa 200 ký tự + "..." nếu bị cắt (dùng helper
+          truncate() trong app.locals), rồi tới ngày (icon đồng hồ) +
+          lượt xem (icon mắt).
+        + Phân trang .pagination y hệt style dùng ở trang danh mục.
+
+    - Cột phải .home-sidebar (1fr, flex-column, mỗi widget là 1 <div>
+      chứa heading ĐỨNG RIÊNG bên ngoài + <aside> card bên dưới - đã
+      sửa lại để đồng bộ style với "Tin mới nhất", KHÔNG nhốt heading
+      chung khung với nội dung nữa):
+        + "Đọc nhiều nhất" (.most-read-home): 5 bài có views (SỐ
+          THẬT) cao nhất toàn site (Article.find().sort({views:-1}).
+          limit(5)) - KHÔNG loại trừ bài nào. Mỗi item: số thứ hạng
+          1-5 trong ô vuông đỏ bo góc, tiêu đề đậm, lượt xem (số ẢO,
+          formatViews) - không có icon mắt ở đây, không có ngày.
+        + "Chuyên mục" (.categories-widget): toàn bộ danh mục
+          (categories, lấy từ commonLayoutData()), hiển thị dạng pill
+          bo tròn trắng viền xám, click sang trang danh mục tương ứng.
+
+Heading dùng chung 1 pattern HTML/CSS (Tailwind-like utility class tự
+viết trong site.css, KHÔNG dùng framework Tailwind thật):
+  <h2 class="text-lg font-black uppercase tracking-wide text-ink">
+    <span class="mr-2 inline-block h-4 w-1.5 translate-y-0.5 bg-brand">
+    </span>Tên section
+  </h2>
+Các class .text-lg/.font-black/.uppercase/.tracking-wide/.text-ink/
+.mr-2/.inline-block/.h-4/.w-1\.5/.translate-y-0\.5/.bg-brand được định
+nghĩa thủ công ở cuối site.css (không phải Tailwind CDN/build thật).
+
+
+---------------------------------------------------------------------
+12. TRANG CHI TIẾT BÀI VIẾT & POPUP TIKTOK GATE + CLICK TRACKING
+---------------------------------------------------------------------
+File: src/controllers/site/siteController.js -> exports.articleDetail
+      src/views/site/article.ejs
+      public/js/site.js
+
+- Tìm bài theo slug, populate category + tiktokProduct.
+- Tăng views: Article.updateOne({_id}, {$inc:{views:1}}) - chạy ngầm
+  (không await), không chặn response. Đây là số THẬT (xem mục 13).
+- KHÔNG còn hiển thị ảnh đại diện riêng ở đầu bài (đã bỏ field
+  Article.image) - nội dung bắt đầu ngay bằng Đoạn 1 (in đậm), rồi
+  Ảnh 1, Đoạn 2, Ảnh 2, Đoạn 3.
+- mostRead (sidebar bên phải trang chi tiết, KHÁC với "Đọc nhiều nhất"
+  ở trang chủ): 5 bài khác (loại trừ bài đang xem) có views thật cao
+  nhất.
+
+POPUP TIKTOK GATE (chỉ hiện khi article.tiktokProduct khác null):
+  1. View render:
+     - 1 thẻ ẩn #tiktok-gate-trigger chứa data-tiktok-link VÀ
+       data-tiktok-id (id của TiktokProduct, dùng để gọi API tăng
+       clicks).
+     - 1 overlay #tiktok-gate-overlay (display:none ban đầu) chứa:
+       + nút X tròn góc trên-phải (#tiktok-gate-close-x, class
+         "tiktok-gate-close-x tiktok-gate-action") - nền màu theme
+         (var(--accent)), chữ X trắng, hover đậm hơn.
+       + ảnh sản phẩm TikTok (fallback placeholder nếu rỗng)
+       + headline <h2 class="tiktok-gate-headline"> (in đậm, size 20px)
+         nội dung: "Truy cập TikTok để xem thêm và sản phẩm này."
+       + nút "Xem trên TikTok" (#tiktok-gate-close, class
+         "tiktok-gate-close tiktok-gate-action") - to hơn nút thường
+         (padding 15px 34px, font-size 17px).
+     - CẢ 2 nút (X và "Xem trên TikTok") đều có chung class
+       ".tiktok-gate-action" -> public/js/site.js gắn CÙNG 1 handler
+       cho cả 2, tức bấm nút nào cũng làm y hệt nhau (không có cách
+       nào đóng popup mà KHÔNG mở TikTok - đây là chủ đích, xem ghi
+       chú UX bên dưới).
+  2. public/js/site.js chạy khi trang load:
+     - Thêm class "is-gated" vào #article-content-wrapper -> CSS làm
+       mờ (blur 6px) + chặn click (pointer-events:none) nội dung bài.
+     - setTimeout 2000ms -> hiện overlay (display:flex).
+     - Khi bấm 1 trong 2 nút .tiktok-gate-action:
+       a. Nếu có tiktokId -> gọi POST /api/tiktok-click/:id để tăng
+          TiktokProduct.clicks (ưu tiên navigator.sendBeacon, fallback
+          fetch keepalive:true nếu trình duyệt không hỗ trợ beacon).
+       b. window.open(tiktokLink, '_blank', 'noopener') - mở tab mới.
+       c. Ẩn overlay + gỡ class is-gated -> nội dung bài viết hiện rõ.
+
+  GHI CHÚ UX (đã note lúc build, VẪN CÒN ĐÚNG): đây là một dark pattern
+  (ép user phải click ra ngoài mới đọc được tin) + số "lượt xem" hiển
+  thị cũng là số ảo (mục 13) - cả 2 đều được làm ĐÚNG THEO YÊU CẦU,
+  nhưng nên cân nhắc lại trải nghiệm người dùng thật + tính minh bạch
+  trước khi đưa lên production thật.
+
+
+---------------------------------------------------------------------
+13. LƯỢT XEM "ẢO" HIỂN THỊ Ở FE (formatViews) VS LƯỢT XEM THẬT
+---------------------------------------------------------------------
+File: src/utils/displayViews.js
+      app.js  (app.locals.formatViews = formatDisplayViews)
+
+QUAN TRỌNG: có 2 khái niệm "lượt xem" khác nhau, đừng nhầm lẫn khi debug:
+
+(a) Article.views (số THẬT, lưu trong MongoDB)
+    - Tăng dần mỗi lần có người xem trang chi tiết (mục 12).
+    - Dùng để: sort "Đọc nhiều nhất" (trang chủ + sidebar trang chi
+      tiết), sort cột "Lượt xem" trong admin, hiển thị TRỰC TIẾP (số
+      thật) ở cột "Lượt xem" trong admin/articles/list.ejs.
+    - KHÔNG bao giờ hiển thị trực tiếp cho khách ở FE.
+
+(b) formatViews(articleId) (số ẢO, chỉ để HIỂN THỊ cho khách ở FE)
+    - Sinh ra bằng hash đơn giản (djb2-like) từ `${id}-${hourBucket}`,
+      hourBucket = giờ hiện tại chia theo epoch -> luôn ra số trong
+      khoảng 10.000 - 12.000, format dạng "X.XK" (vd "11.2K").
+    - ỔN ĐỊNH trong cùng 1 giờ cho cùng 1 bài (không đổi lung tung mỗi
+      lần load lại trang), nhưng đổi nhẹ khi sang giờ khác - tạo cảm
+      giác "đang tăng dần" mà KHÔNG cần lưu gì thêm vào DB.
+    - Dùng ở MỌI nơi hiển thị "lượt xem" cho khách: trang chủ (main,
+      secondary, news-list, đọc nhiều nhất), trang danh mục, trang chi
+      tiết, sidebar "đọc nhiều nhất" của trang chi tiết.
+    - Đây là tính năng "vanity metric" (số liệu ảo cho có vẻ hot) -
+      ĐÃ ĐƯỢC LÀM RÕ VỚI USER lúc build, chủ đích của dự án.
+
+=> Nếu sau này thấy "sao lượt xem hiển thị không tăng theo view thật":
+   ĐÓ LÀ ĐÚNG THIẾT KẾ, không phải bug. Muốn xem số thật thì vào
+   /admin/articles.
+
+
+---------------------------------------------------------------------
+14. TRANG DANH MỤC & HEADER/FOOTER (sticky header, logo tròn, footer)
+---------------------------------------------------------------------
+Trang danh mục (site/category.ejs): giống news-list ở trang chủ (ảnh
+bodyImage1, tiêu đề, excerpt cắt 200 ký tự, ngày+lượt xem), có phân
+trang riêng 12 bài/trang (khác 15 bài/trang của trang chủ).
+
+HEADER (site/partials/header.ejs):
+  - Bọc cả .site-header (logo+hotline) VÀ .site-nav (menu) trong 1
+    <div class="site-header-wrap"> có position:sticky; top:0 -> cuộn
+    trang xuống thì header+menu LUÔN dính ở trên cùng (kèm box-shadow
+    nhẹ khi sticky).
+  - Logo: LUÔN hiển thị chữ "TinTức24h" (span.fallback-logo, font-size
+    48px, không phải escape). NẾU admin đã upload logo (siteConfig.logo)
+    thì thêm 1 ảnh <img class="site-header__logo-icon"> HÌNH TRÒN
+    (48x48px, border-radius:50%, object-fit:cover) đứng NGAY TRƯỚC chữ
+    -> ảnh KHÔNG thay thế chữ, luôn hiện cả 2 cùng lúc (giống pattern
+    icon+wordmark của gocvacham.com).
+  - .site-nav: chữ menu size 16px, UPPERCASE, letter-spacing nhẹ.
+
+FOOTER (site/partials/footer.ejs):
+  - Cột đầu tiên: .site-footer__logo-row (flex) chứa optional
+    <img class="site-footer__logo-icon"> (cũng HÌNH TRÒN, cùng logic
+    với header) + chữ "TinTức24h" (strong.site-footer__logo, size 48px
+    - LƯU Ý specificity CSS, xem mục 18 bug #6).
+  - Bên dưới: đoạn mô tả ("Tin tức mới mỗi ngày - Cập nhật tin nóng
+    24h và những góc nhìn đa chiều về đời sống, xã hội, giải trí, thể
+    thao và công nghệ."), dòng Email (tintuc24h@gmail.com - hardcode
+    trong footer.ejs, KHÔNG lấy từ config), dòng Hotline (LẤY TỪ
+    siteConfig.hotline, chỉ hiện khi admin đã điền ở /admin/config).
+  - 2 cột còn lại: "Chuyên mục" (list link danh mục) và "Kết nối"
+    (Facebook/TikTok/Zalo - link "#" placeholder, chưa có link thật).
+
+CONTAINER: .container { max-width: 72rem; } (đổi từ 1100px cố định
+sang đơn vị rem theo yêu cầu).
+
+
+---------------------------------------------------------------------
+15. ADMIN: DANH SÁCH BÀI VIẾT/TIKTOK - SEARCH, SORT, STT, GHIM STATUS=1
+---------------------------------------------------------------------
+(Xem chi tiết route/query ở mục 9. Phần này note thêm về UI/UX.)
+
+- Cả 2 màn /admin/articles và /admin/tiktok đều có:
+  + Ô search theo tiêu đề (.admin-search-form, method GET, giữ nguyên
+    q khi submit, có nút "Xóa lọc" khi đang có q).
+  + Link sort 2 chiều ở header cột số liệu (Lượt xem / Lượt click) -
+    bấm vào đảo asc/desc, có mũi tên ▲▼ chỉ chiều đang sort.
+  + Cột đầu tiên là "STT" (số thứ tự theo trang), KHÔNG phải _id thật
+    (trước đây từng hiển thị _id, đã đổi theo yêu cầu).
+  + Phân trang dùng chung partial admin/partials/pagination.ejs, giữ
+    nguyên q & sort khi chuyển trang.
+
+- RIÊNG /admin/articles: mọi bài có status=1 ("Tin chính") LUÔN bị/được
+  Mongo sort ghim lên đầu danh sách (sort: {status:-1, ...}) - áp dụng
+  cho MỌI trường hợp search/sort, không thể tắt. Dòng đó được thêm
+  class "row-highlight" -> nền xanh dương nhạt (#dbeafe, hover #bfdbfe -
+  màu XANH DƯƠNG nhạt hơn theme admin (#2563eb), KHÔNG phải màu vàng
+  như bản đầu tiên đã làm rồi đổi lại theo yêu cầu).
+
+
+---------------------------------------------------------------------
+16. VIEWS (EJS) - CẢNH BÁO LỖI ĐÃ GẶP (RẤT QUAN TRỌNG)
+---------------------------------------------------------------------
+Mỗi trang EJS đều có cấu trúc:
+  <%- include('partials/header', {...}) %>
+  ... nội dung riêng của trang ...
+  <%- include('partials/footer') %>
+
+LỖI ĐÃ GẶP: Ban đầu code viết nhầm thành <% include(...) %> (thiếu
+dấu gạch ngang "-"). Trong EJS:
+  <%  ...  %>   = chạy code JS, KHÔNG in kết quả ra HTML (scriptlet)
+  <%- ... %>   = chạy code và IN kết quả ra HTML, không escape
+  <%= ... %>   = chạy code và in ra HTML CÓ escape (dùng cho text)
+
+Vì include() trả về chuỗi HTML đã render, nếu đặt trong <% %> thì
+chuỗi đó bị "vứt bỏ", không in ra gì cả -> hậu quả là header/footer
+(chứa <head>, thẻ <link rel="stylesheet">, sidebar admin, menu
+frontend...) HOÀN TOÀN BIẾN MẤT khỏi trang, chỉ còn lại nội dung ở
+giữa, không có CSS, không có layout -> trông như HTML thô không style.
+
+=> NẾU SAU NÀY THẤY TRANG NÀO "MẤT STYLE / MẤT SIDEBAR / MẤT MENU"
+   MỘT CÁCH KỲ LẠ: việc đầu tiên cần check là các dòng include() ở
+   đầu/cuối file .ejs đó có đang dùng đúng "<%- include(...) %>"
+   hay không. Các icon dùng chung (icon-eye.ejs, icon-clock.ejs) cũng
+   phải include bằng <%- %> tương tự.
+
+Ngoài ra: Express mặc định KHÔNG cache view trong môi trường dev (chỉ
+cache khi NODE_ENV=production) -> sửa file .ejs/.css/.js trong public/
+KHÔNG cần restart server, chỉ cần load lại trang trên trình duyệt là
+thấy thay đổi ngay. Nếu sửa file .js phía server (controller, route,
+model, app.js, utils/...) thì BẮT BUỘC phải restart server (và nếu
+đang ở chế độ MongoDB in-memory thì mất hết dữ liệu - xem mục 5).
+
+
+---------------------------------------------------------------------
+17. ẢNH PLACEHOLDER KHI KHÔNG CÓ ẢNH
+---------------------------------------------------------------------
+LỖI ĐÃ GẶP: Ban đầu dùng ảnh fallback từ dịch vụ ngoài
+"https://placehold.co/...". Nếu máy/mạng không truy cập được domain
+này (mạng công ty chặn, không có internet...) thì MỌI card không có
+ảnh riêng sẽ hiện icon ảnh vỡ trên frontend -> trông như "ảnh không
+hiển thị được" dù server/upload hoàn toàn bình thường.
+
+ĐÃ FIX: tạo file tĩnh public/images/placeholder.svg (vẽ tay bằng SVG,
+không phụ thuộc mạng ngoài) và dùng làm fallback ở MỌI nơi hiển thị
+ảnh bài viết/tiktok product (bodyImage1 rỗng, tiktokProduct.image rỗng...).
+
+=> Nếu sau này thấy ảnh không hiển thị:
+   1. Kiểm tra file thật có tồn tại trong public/uploads/ không
+      (ls public/uploads).
+   2. Kiểm tra field ảnh trong DB (vd article.bodyImage1) có giá trị
+      đường dẫn "/uploads/xxx.jpg" hay đang rỗng (rỗng = user chưa
+      upload Ảnh 1 cho bài đó, không phải lỗi code - nhớ: Ảnh 1 giờ là
+      ảnh đại diện DUY NHẤT, không còn field "image" riêng - mục 6).
+   3. Test trực tiếp: curl http://localhost:3000/uploads/<tên file>
+      xem có trả về 200 + đúng content-type ảnh không.
+   4. Đừng thêm lại bất kỳ URL ảnh từ dịch vụ ngoài nào làm fallback
+      mặc định - luôn dùng file tĩnh local trong public/.
+
+
+---------------------------------------------------------------------
+18. DANH SÁCH LỖI/BUG ĐÃ GẶP & CÁCH ĐÃ FIX (đọc trước khi debug lại)
+---------------------------------------------------------------------
+(1) Không login được với mật khẩu thật
+    Nguyên nhân: admin được seed từ .env lúc server khởi động; nếu
+    .env đang có mật khẩu placeholder khác với mật khẩu thật muốn dùng.
+    Sau khi sửa ADMIN_PASSWORD trong .env, PHẢI restart lại tiến trình
+    node (nodemon KHÔNG tự đọc lại .env khi chỉ sửa .env, vì nó không
+    nằm trong danh sách file được watch mặc định) thì mới nhận mật
+    khẩu mới.
+
+(2) Trang admin hiển thị chữ thô, không có sidebar/CSS
+    Nguyên nhân: lỗi include() ở mục 16. Đã fix toàn bộ file view liên
+    quan (13 file ban đầu + các partial mới thêm sau này).
+
+(3) Ảnh trên frontend không hiển thị (icon ảnh vỡ)
+    Nguyên nhân: fallback ảnh trỏ ra dịch vụ ngoài placehold.co, mục
+    17. Đã thay bằng public/images/placeholder.svg.
+
+(4) Bỏ field "Ảnh đại diện" (Article.image) khỏi model/form/controller
+    Lý do: yêu cầu dùng LUÔN Ảnh 1 (bodyImage1) làm ảnh đại diện, không
+    cần upload 2 lần. Đã xóa field khỏi Article schema, khỏi
+    articleController (create/update/clone), khỏi upload.fields() ở
+    admin.js, khỏi form + list view. Trang chi tiết bài viết cũng bỏ
+    luôn ảnh hero riêng ở đầu bài (vì Ảnh 1 đã hiển thị tự nhiên ngay
+    sau Đoạn 1 trong nội dung, tránh trùng lặp).
+
+(5) Form sửa bài viết luôn báo lỗi validate "Please enter a URL" dù đã
+    upload ảnh, xảy ra ở MỌI lần bấm Lưu (kể cả sửa field khác)
+    Nguyên nhân: input "dán URL ảnh 1/2" (bodyImage1Url, bodyImage2Url)
+    dùng type="url". Khi edit bài đã có ảnh, giá trị prefill là đường
+    dẫn tương đối "/uploads/xxx.jpg" - HTML5 validate type="url" yêu
+    cầu URL tuyệt đối có scheme (vd https://...), nên trình duyệt CHẶN
+    submit toàn bộ form và hiện popup lỗi, bất kể user sửa field nào.
+    ĐÃ FIX: đổi 2 input này sang type="text" (vì giá trị có thể là
+    đường dẫn tương đối HOẶC URL ngoài đầy đủ).
+
+(6) Chữ "TinTức24h" ở footer không đổi màu dù đã set CSS color đúng
+    Nguyên nhân: lỗi CSS SPECIFICITY. Rule `.site-footer strong { color:
+    #fff; }` (specificity: 1 class + 1 element = 0,1,1) có độ ưu tiên
+    CAO HƠN rule `.site-footer__logo { color: var(--accent); }`
+    (specificity: 1 class = 0,1,0), nên dù đặt SAU trong file CSS, rule
+    màu trắng vẫn thắng (CSS specificity luôn thắng thứ tự source order
+    khi 2 rule cùng áp dụng lên 1 phần tử). ĐÃ FIX: tăng specificity
+    bằng cách viết lại selector cụ thể hơn: `.site-footer strong.site-
+    footer__logo { color: var(--accent); ... }`.
+    => BÀI HỌC: khi sửa màu/style 1 CLASS mà "không ăn" dù chắc chắn
+       CSS đã lên server, luôn nghi ngờ CSS SPECIFICITY trước (có rule
+       khác cụ thể hơn đang đè lên không), không phải do cache/chưa
+       reload.
+
+(7) MongoDB in-memory: rất nhiều lần "tự nhiên mất hết bài viết/tiktok
+    product/mật khẩu đã đổi" trong lúc đang fix tính năng khác
+    Nguyên nhân: MONGODB_URI để trống -> mỗi lần sửa file .js (bắt
+    buộc phải restart server) là mất sạch dữ liệu (xem mục 5). KHÔNG
+    phải bug - là hệ quả tất yếu của việc chưa cấu hình MongoDB thật.
+
+Khi debug lỗi mới, luôn kiểm tra theo thứ tự:
+  a. Server có đang chạy không, log console có báo lỗi gì không.
+  b. Đang dùng MongoDB in-memory hay MongoDB thật (mục 5) - rất nhiều
+     "lỗi mất dữ liệu" thực chất là do restart server ở chế độ
+     in-memory.
+  c. Nếu là lỗi hiển thị (mất style/mất phần tử) -> check include()
+     trong file .ejs liên quan (mục 16).
+  d. Nếu 1 rule CSS "không ăn" dù chắc chắn đã sửa đúng file -> check
+     specificity (mục 18 bug #6), không phải do cache trình duyệt.
+  e. Nếu là lỗi ảnh -> check theo mục 17.
+  f. Nếu là lỗi quyền/đăng nhập -> check session, check ensureAdmin
+     trong log console lúc start server.
+  g. Nếu là lỗi "lượt xem hiển thị sai/không tăng" -> đọc mục 13 trước,
+     rất có thể không phải bug (số hiển thị FE là số ảo theo thiết kế).
+
+
+---------------------------------------------------------------------
+19. THEME MÀU HIỆN TẠI
+---------------------------------------------------------------------
+FE (public/css/site.css, biến --accent):
+  --accent: #78b43d       (xanh lá)
+  --accent-dark: #5e9330  (xanh lá đậm, dùng cho hover)
+  (Trước đây từng là đỏ #e0301e, đã đổi theo yêu cầu.)
+  Badge "TIN NÓNG" / "TIN NỔI BẬT" dùng màu ĐỎ CỐ ĐỊNH riêng (#dc2626 /
+  #f97316 cam), KHÔNG theo biến --accent, vì đây là màu cảnh báo/nổi
+  bật cố ý tương phản với theme xanh lá.
+
+Admin (public/css/admin.css, biến --accent):
+  --accent: #2563eb       (xanh dương)
+  --accent-dark: #1d4ed8
+  --dark: #10233f          (navy đậm, nền sidebar)
+  (Trước đây từng là đỏ #e0301e, đã đổi theo yêu cầu.)
+  Highlight dòng "Tin chính" trong list bài viết: #dbeafe (xanh dương
+  RẤT nhạt, nhạt hơn --accent), hover #bfdbfe.
+
+
+---------------------------------------------------------------------
+20. VIỆC CÒN TỒN ĐỌNG / NÊN CẢI THIỆN THÊM
+---------------------------------------------------------------------
+- Session hiện dùng MemoryStore mặc định của express-session (chỉ phù
+  hợp 1 admin, traffic thấp). Nếu cần chạy nhiều tiến trình / production
+  ổn định, nên đổi sang connect-mongo (session lưu trong MongoDB).
+- Chưa có MongoDB thật được cấu hình (MONGODB_URI đang để trống) ->
+  PHẢI cấu hình trước khi đưa lên production, nếu không mọi dữ liệu
+  sẽ mất khi server restart/deploy lại (xem mục 5).
+- Popup TikTok gate là một dark pattern UX + số lượt xem hiển thị là số
+  ảo (mục 12, 13) - đã làm đúng theo yêu cầu ban đầu nhưng nên cân nhắc
+  lại trải nghiệm/tính minh bạch trước khi lên production thật.
+- Chưa có test tự động (unit test / integration test) cho các
+  controller - hiện đang test thủ công bằng curl mỗi khi sửa tính năng.
+- Footer: mục "Kết nối" (Facebook/TikTok/Zalo) vẫn là link "#" placeholder,
+  chưa có link mạng xã hội thật.
+- Site config chưa có nút "gỡ logo" - chỉ có thể ghi đè bằng logo mới.

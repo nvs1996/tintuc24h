@@ -1,0 +1,31 @@
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="site-footer__cols">
+        <div>
+          <div class="site-footer__logo-row">
+            <% if (siteConfig && siteConfig.logo) { %><img src="<%= siteConfig.logo %>" alt="Logo" class="site-footer__logo-icon"><% } %>
+            <strong class="site-footer__logo">TinTức24h</strong>
+          </div>
+          <p>Tin tức mới mỗi ngày - Cập nhật tin nóng 24h và những góc nhìn đa chiều về đời sống, xã hội, giải trí, thể thao và công nghệ.</p>
+          <p>Email: tintuc24h@gmail.com</p>
+          <% if (siteConfig && siteConfig.hotline) { %><p>Hotline: <%= siteConfig.hotline %></p><% } %>
+        </div>
+        <div>
+          <strong>Chuyên mục</strong>
+          <p>
+            <% categories.forEach(function(cat, i) { %><a href="/danh-muc/<%= cat.slug %>"><%= cat.title %></a><%= i < categories.length - 1 ? ' &middot; ' : '' %><% }) %>
+          </p>
+        </div>
+        <div>
+          <strong>Kết nối</strong>
+          <p><a href="#">Facebook</a> &middot; <a href="#">TikTok</a> &middot; <a href="#">Zalo</a></p>
+        </div>
+      </div>
+      <div class="site-footer__bottom">&copy; <%= new Date().getFullYear() %> TinTức24h &mdash; Nội dung được tổng hợp từ nhiều nguồn.</div>
+    </div>
+  </footer>
+  <script src="/js/site.js"></script>
+</body>
+</html>

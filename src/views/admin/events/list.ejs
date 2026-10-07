@@ -1,0 +1,45 @@
+<%- include('../partials/header', { pageTitle: 'Sự kiện', active: 'events' }) %>
+<div class="admin-topbar">
+  <h2>Sự kiện</h2>
+  <a class="btn" href="/admin/events/new">+ Thêm event</a>
+</div>
+<% error.forEach(function(e) { %><div class="alert error"><%= e %></div><% }) %>
+<% success.forEach(function(s) { %><div class="alert success"><%= s %></div><% }) %>
+
+<div class="card">
+  <table>
+    <thead>
+      <tr>
+        <th>STT</th>
+        <th>Tiêu đề</th>
+        <th>TikTok Products</th>
+        <th>Trạng thái</th>
+        <th>Đang dùng cho FE</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% events.forEach(function(ev, i) { %>
+        <tr class="<%= ev.useThisEvent === 1 ? 'row-highlight' : '' %>">
+          <td><%= (page - 1) * perPage + i + 1 %></td>
+          <td><%= ev.title %></td>
+          <td><%= ev.tiktokIds.length %> sản phẩm</td>
+          <td><%= ev.status === 1 ? 'Kích hoạt' : 'Không kích hoạt' %></td>
+          <td><%= ev.useThisEvent === 1 ? 'Kích hoạt' : 'Không kích hoạt' %></td>
+          <td>
+            <a href="/admin/events/<%= ev._id %>/edit">Sửa</a>
+            &nbsp;|&nbsp;
+            <form method="POST" action="/admin/events/<%= ev._id %>/delete" style="display:inline" onsubmit="return confirm('Xóa event này?');">
+              <button type="submit" style="background:none;border:none;color:#b91c1c;cursor:pointer;padding:0;font-size:14px;">Xóa</button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+      <% if (!events.length) { %><tr><td colspan="6">Chưa có event nào.</td></tr><% } %>
+    </tbody>
+  </table>
+</div>
+
+<%- include('../partials/pagination', { page, totalPages, q: '', sort: '' }) %>
+
+<%- include('../partials/footer') %>

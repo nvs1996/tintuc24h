@@ -1,0 +1,59 @@
+<%- include('../partials/header', { pageTitle: event ? 'Sửa event' : 'Thêm event', active: 'events' }) %>
+<div class="admin-topbar"><h2><%= event ? 'Sửa event' : 'Thêm event' %></h2></div>
+<div class="card">
+  <% error.forEach(function(e) { %><div class="alert error"><%= e %></div><% }) %>
+  <form method="POST" action="<%= event ? ('/admin/events/' + event._id) : '/admin/events' %>" enctype="multipart/form-data">
+
+    <div class="form-group">
+      <label>Tiêu đề</label>
+      <input type="text" name="title" required value="<%= event ? event.title : '' %>">
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Trạng thái</label>
+        <select name="status">
+          <option value="1" <%= !event || event.status === 1 ? 'selected' : '' %>>Kích hoạt</option>
+          <option value="0" <%= event && event.status === 0 ? 'selected' : '' %>>Không kích hoạt</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Đang dùng cho FE (use_this_event)</label>
+        <select name="useThisEvent">
+          <option value="0" <%= !event || event.useThisEvent === 0 ? 'selected' : '' %>>Không kích hoạt</option>
+          <option value="1" <%= event && event.useThisEvent === 1 ? 'selected' : '' %>>Kích hoạt</option>
+        </select>
+        <p style="font-size:12px;color:#666;margin:6px 0 0;">Chỉ 1 event được "Kích hoạt" cùng lúc - bật event này sẽ tự tắt các event khác.</p>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Ảnh popup</label>
+      <input type="file" name="image" accept="image/*" data-preview="preview-image">
+      <img id="preview-image" class="thumb-preview" style="display:<%= event && event.image ? 'block' : 'none' %>;" src="<%= event && event.image ? event.image : '' %>">
+    </div>
+
+    <hr style="margin:20px 0;border:none;border-top:1px solid #e2e2e2;">
+    <h3 style="font-size:14px;">TikTok Products trong event</h3>
+
+    <div class="form-group">
+      <input type="text" id="tiktok-picker-search" placeholder="Tìm sản phẩm TikTok theo tiêu đề...">
+    </div>
+
+    <div class="tiktok-picker-list">
+      <% tiktokProducts.forEach(function(p) { %>
+        <label class="tiktok-picker-item" data-title="<%= p.title.toLowerCase() %>">
+          <input type="checkbox" name="tiktokIds" value="<%= p._id %>"
+            <%= event && event.tiktokIds.some(function(id) { return String(id) === String(p._id); }) ? 'checked' : '' %>>
+          <% if (p.image) { %><img src="<%= p.image %>" alt=""><% } %>
+          <span><%= p.title %></span>
+        </label>
+      <% }) %>
+      <% if (!tiktokProducts.length) { %><p>Chưa có TikTok product nào.</p><% } %>
+    </div>
+
+    <button class="btn" type="submit" style="margin-top:16px;">Lưu</button>
+    <a class="btn secondary" href="/admin/events">Hủy</a>
+  </form>
+</div>
+<%- include('../partials/footer') %>

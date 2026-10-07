@@ -1,0 +1,64 @@
+<%- include('../partials/header', { pageTitle: 'Bài viết', active: 'articles' }) %>
+<div class="admin-topbar">
+  <h2>Bài viết</h2>
+  <a class="btn" href="/admin/articles/new">+ Thêm bài viết</a>
+</div>
+<% error.forEach(function(e) { %><div class="alert error"><%= e %></div><% }) %>
+<% success.forEach(function(s) { %><div class="alert success"><%= s %></div><% }) %>
+
+<form method="GET" class="admin-search-form">
+  <input type="text" name="q" value="<%= q %>" placeholder="Tìm theo tiêu đề...">
+  <% if (sort) { %><input type="hidden" name="sort" value="<%= sort %>"><% } %>
+  <button class="btn" type="submit">Tìm</button>
+  <% if (q) { %><a class="btn secondary" href="?<%= sort ? 'sort=' + sort : '' %>">Xóa lọc</a><% } %>
+</form>
+
+<div class="card">
+  <table>
+    <thead>
+      <tr>
+        <th>STT</th>
+        <th>Ảnh</th>
+        <th>Tiêu đề</th>
+        <th>Danh mục</th>
+        <th>Trạng thái</th>
+        <th>Top</th>
+        <th>
+          <a class="sort-link" href="?<%= q ? 'q=' + encodeURIComponent(q) + '&' : '' %>sort=<%= sort === 'views_desc' ? 'views_asc' : 'views_desc' %>">
+            Lượt xem <%= sort === 'views_desc' ? '▼' : (sort === 'views_asc' ? '▲' : '') %>
+          </a>
+        </th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% articles.forEach(function(a, i) { %>
+        <tr class="<%= a.status === 1 ? 'row-highlight' : '' %>">
+          <td><%= (page - 1) * perPage + i + 1 %></td>
+          <td><% if (a.bodyImage1) { %><img src="<%= a.bodyImage1 %>"><% } %></td>
+          <td><%= a.title %></td>
+          <td><%= a.category ? a.category.title : '' %></td>
+          <td><%= a.status === 1 ? 'Tin chính' : 'Tin phụ' %></td>
+          <td><%= a.isTopNews ? 'Có' : '' %></td>
+          <td><%= a.views %></td>
+          <td>
+            <a href="/admin/articles/<%= a._id %>/edit">Sửa</a>
+            &nbsp;|&nbsp;
+            <form method="POST" action="/admin/articles/<%= a._id %>/clone" style="display:inline">
+              <button type="submit" style="background:none;border:none;color:var(--accent);cursor:pointer;padding:0;font-size:14px;">Nhân bản</button>
+            </form>
+            &nbsp;|&nbsp;
+            <form method="POST" action="/admin/articles/<%= a._id %>/delete" style="display:inline" onsubmit="return confirm('Xóa bài viết này?');">
+              <button type="submit" style="background:none;border:none;color:#b91c1c;cursor:pointer;padding:0;font-size:14px;">Xóa</button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+      <% if (!articles.length) { %><tr><td colspan="8">Không có bài viết nào.</td></tr><% } %>
+    </tbody>
+  </table>
+</div>
+
+<%- include('../partials/pagination', { page, totalPages, q, sort }) %>
+
+<%- include('../partials/footer') %>

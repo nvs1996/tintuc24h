@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= typeof pageTitle !== 'undefined' ? pageTitle : 'Admin' %></title>
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+<div class="admin-layout">
+  <aside class="admin-sidebar">
+    <h1>TinTức24h Admin</h1>
+    <a href="/admin" class="<%= active === 'dashboard' ? 'active' : '' %>">Tổng quan</a>
+    <a href="/admin/articles" class="<%= active === 'articles' ? 'active' : '' %>">Bài viết</a>
+    <a href="/admin/categories" class="<%= active === 'categories' ? 'active' : '' %>">Danh mục</a>
+    <a href="/admin/tiktok" class="<%= active === 'tiktok' ? 'active' : '' %>">TikTok Products</a>
+    <a href="/admin/events" class="<%= active === 'events' ? 'active' : '' %>">Sự kiện</a>
+    <a href="/admin/config" class="<%= active === 'config' ? 'active' : '' %>">Cấu hình chung</a>
+    <a href="/admin/change-password" class="<%= active === 'change-password' ? 'active' : '' %>">Đổi mật khẩu</a>
+    <form action="/admin/logout" method="POST" style="margin-top:10px;">
+      <a href="#" onclick="this.closest('form').submit(); return false;">Đăng xuất</a>
+    </form>
+  </aside>
+  <main class="admin-main">

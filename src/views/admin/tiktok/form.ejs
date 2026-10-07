@@ -1,0 +1,27 @@
+<%- include('../partials/header', { pageTitle: product ? 'Sửa TikTok Product' : 'Thêm TikTok Product', active: 'tiktok' }) %>
+<div class="admin-topbar"><h2><%= product ? 'Sửa TikTok Product' : 'Thêm TikTok Product' %></h2></div>
+<div class="card" style="max-width:520px;">
+  <% error.forEach(function(e) { %><div class="alert error"><%= e %></div><% }) %>
+  <form method="POST" action="<%= product ? ('/admin/tiktok/' + product._id) : '/admin/tiktok' %>" enctype="multipart/form-data">
+    <div class="form-group">
+      <label>Tiêu đề</label>
+      <input type="text" name="title" required value="<%= product ? product.title : '' %>">
+    </div>
+    <div class="form-group">
+      <label>Loại (type)</label>
+      <input type="text" name="type" value="<%= product ? product.type : '' %>" placeholder="vd: video, sản phẩm...">
+    </div>
+    <div class="form-group">
+      <label>Link TikTok</label>
+      <input type="url" name="tiktokLink" required value="<%= product ? product.tiktokLink : '' %>" placeholder="https://www.tiktok.com/@...">
+    </div>
+    <div class="form-group">
+      <label>Ảnh</label>
+      <input type="file" name="image" accept="image/*" data-preview="preview-image">
+      <br><img id="preview-image" class="thumb-preview" style="display:<%= product && product.image ? 'block' : 'none' %>;" src="<%= product && product.image ? product.image : '' %>">
+    </div>
+    <button class="btn" type="submit">Lưu</button>
+    <a class="btn secondary" href="/admin/tiktok">Hủy</a>
+  </form>
+</div>
+<%- include('../partials/footer') %>

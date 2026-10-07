@@ -1,0 +1,14 @@
+<%- include('../partials/header', { pageTitle: category ? 'Sửa danh mục' : 'Thêm danh mục', active: 'categories' }) %>
+<div class="admin-topbar"><h2><%= category ? 'Sửa danh mục' : 'Thêm danh mục' %></h2></div>
+<div class="card" style="max-width:480px;">
+  <% error.forEach(function(e) { %><div class="alert error"><%= e %></div><% }) %>
+  <form method="POST" action="<%= category ? ('/admin/categories/' + category._id) : '/admin/categories' %>">
+    <div class="form-group">
+      <label>Tiêu đề</label>
+      <input type="text" name="title" required value="<%= category ? category.title : '' %>">
+    </div>
+    <button class="btn" type="submit">Lưu</button>
+    <a class="btn secondary" href="/admin/categories">Hủy</a>
+  </form>
+</div>
+<%- include('../partials/footer') %>
